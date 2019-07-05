@@ -1,0 +1,35 @@
+[main]
+#并发
+concurrent=10
+#数据库连接
+add=192.168.2.250
+port=3306
+username=root
+password=gaopeng
+databasename=web3
+filepath=/data/zip/unrarfull
+
+#mode={getbookinfo,getchapterinfo,getconent}
+#getbookinfo获取小说名称，作者，bookid
+#getchapterinfo 获取小说章节信息，章节名称章节id....
+#getcontent 获取小说内容，并加入html标签
+mode=getconent
+
+#获取书名，作者，源文件路径，创建bookid
+[getbookinfo]
+#会调用getchapterinfo的rules匹配章节规则，写入数据库，再getchapterinfo阶段，只会调用一个规则。减少匹配次数
+
+
+
+#获取章节名称，章节数，生成章节id，章节的位置信息（行数）
+[getchapterinfo]
+rules1=
+
+
+[getcontent]
+rules1=
+
+
+
+
+
