@@ -25,7 +25,7 @@ var db *sql.DB
 var filenamech = make(chan string, 10)
 
 func GetBookinfo(Db *sql.DB)  {
-	db = db
+	db = Db
 	pathname, err := filepath.Abs(read_conf.Main_str.Filepath)
 	if err != nil {
 		fmt.Println("path error")
