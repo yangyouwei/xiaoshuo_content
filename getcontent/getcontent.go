@@ -3,6 +3,7 @@ package getcontent
 import (
 	"bufio"
 	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 	"fmt"
 	"github.com/yangyouwei/xiaoshuo_content/read_conf"
 	"io"
@@ -35,8 +36,8 @@ type LineOffsetstr struct {
 }
 
 var fullContent []string
-var bookinfos = make(chan booksinfo)
-var chapterContent []string
+var bookinfos = make(chan booksinfo ,100)
+//var chapterContent []string
 var bookId []int
 
 func GetContent(dbc *sql.DB) {
@@ -51,17 +52,20 @@ func GetContent(dbc *sql.DB) {
 			//获取一本书籍信息
 			b := <-bookinfos
 			//小说全部内容
-			fc := fullContent
+			var fc []string
 			readfullcontent(&fc,b.Sourcesfilename)
-			var chapterInfo []chapter
+			//var chapterInfo []chapter
 			//获取该本小说的全部章节信息，并更新章节start  end 行数
-			getchapterinfo(dbc, b, &chapterInfo)
-			for _, k := range chapterInfo {
-				//取出章节内容写入数据库
-				fmt.Println(b.Sourcesfilename,b.Id)
-				fmt.Println(k)
-				updatechapter(dbc, k, &fc)
-			}
+			//getchapterinfo(dbc, b, &chapterInfo)
+			//fmt.Println(chapterInfo)
+			//for _, k := range chapterInfo {
+			//	//取出章节内容写入数据库
+			//	updatechapter(dbc, k, &fc)
+			//}
+			fmt.Println(b.Sourcesfilename)
+			a := len(fc)
+			fmt.Println(a)
+			fmt.Println(fc)
 			wg.Done()
 		}(&wg)
 	}
@@ -76,6 +80,7 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("booksnum: ",n)
 
 	for i:= 1;i <= n ;i++ {
 		booksql := fmt.Sprintf("SELECT id, Sourcesfilename FROM books WHERE id=%v",i)
@@ -126,13 +131,15 @@ func readfullcontent(f *[]string,fp string) {
 	defer fi.Close()
 
 	br := bufio.NewReader(fi)
-	var tmp  []string
+	tmp  := *f
 	for {
 		a, _, c := br.ReadLine()
 		if c == io.EOF {
 			break
 		}
-		*f = append(tmp,string(a))
+		//fmt.Println(string(a))
+		tmp = append(tmp,string(a))
+		//fmt.Println(cap(tmp))
 	}
 }
 
