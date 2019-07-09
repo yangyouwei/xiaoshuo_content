@@ -58,6 +58,8 @@ func GetContent(dbc *sql.DB) {
 			getchapterinfo(dbc, b, &chapterInfo)
 			for _, k := range chapterInfo {
 				//取出章节内容写入数据库
+				fmt.Println(b.Sourcesfilename,b.Id)
+				fmt.Println(k)
 				updatechapter(dbc, k, &fc)
 			}
 			wg.Done()
@@ -70,14 +72,14 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 	//查询总数
 	n := 0
 	sqltext := "select id from books order by id DESC limit 1;"
-	err := dbc.QueryRow(sqltext).Scan(n)
+	err := dbc.QueryRow(sqltext).Scan(&n)
 	if err != nil {
 		panic(err)
 	}
 
 	for i:= 1;i <= n ;i++ {
-		booksql := fmt.Sprintf("SELECT id, Sourcesfilename FROM id=?",i)
-		res, err := dbc.Query(booksql, i)
+		booksql := fmt.Sprintf("SELECT id, Sourcesfilename FROM books WHERE id=%v",i)
+		res, err := dbc.Query(booksql)
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -95,7 +97,8 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 }
 
 func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
-	chaptersql := fmt.Sprintf("id,content,chapterlines FROM booksId=%v",book.Id)
+	chaptersql := fmt.Sprintf("SELECT id,content,chapterlines FROM chapter_%v WHERE booksId=%v",book.Id%100+1,book.Id)
+	fmt.Println(chaptersql)
 	rows, err := dbc.Query(chaptersql)
 	if err != nil {
 		panic(err)
@@ -107,6 +110,7 @@ func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
 		}
 		chsl := *chinfo
 		*chinfo = append(chsl,c)
+		fmt.Println(c)
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
@@ -122,12 +126,12 @@ func readfullcontent(f *[]string,fp string) {
 	defer fi.Close()
 
 	br := bufio.NewReader(fi)
+	var tmp  []string
 	for {
 		a, _, c := br.ReadLine()
 		if c == io.EOF {
 			break
 		}
-		var tmp  []string
 		*f = append(tmp,string(a))
 	}
 }
@@ -136,11 +140,13 @@ func readfullcontent(f *[]string,fp string) {
 func updatechapter(dbc *sql.DB, c chapter, fc *[]string){
 	cs := *fc
 	var a []string
+	fmt.Println(a)
 	if c.end == 0 {
 		a = cs[c.start+1:]
 	}
 	a = cs[c.start+1:c.end]
 	var content string
+	fmt.Println(a)
 	for _,v := range a {
 		content = content + v
 	}

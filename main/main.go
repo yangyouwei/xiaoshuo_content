@@ -36,7 +36,7 @@ func main()  {
 		getbookinfo.GetBookinfo(Db)
 	case "getchapterinfo":
 		getchapterinfo.GetChapterInfo(Db)
-	case "getconent":
+	case "getcontent":
 		getcontent.GetContent(Db)
 	default:
 		fmt.Println("workmod error.")
