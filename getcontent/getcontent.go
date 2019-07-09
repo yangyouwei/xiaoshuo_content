@@ -64,7 +64,7 @@ func GetContent(dbc *sql.DB) {
 func getbookinfs(dbc *sql.DB, c chan booksinfo) {
 	//查询总数
 	n := 0
-	sqltext := "select books from test_limit order by id DESC limit 1;"
+	sqltext := "select id from books order by id DESC limit 1;"
 	err := dbc.QueryRow(sqltext).Scan(n)
 	if err != nil {
 		panic(err)
@@ -89,7 +89,23 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo) {
 }
 
 func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
-
+	chaptersql := fmt.Sprintf("id,content,chapterlines FROM booksId=%v",book.Id)
+	rows, err := dbc.Query(chaptersql)
+	if err != nil {
+		panic(err)
+	}
+	c := chapter{}
+	for  rows.Next()  {
+		if err := rows.Scan(&c.Id,&c.Content,&c.Chapterline); err != nil {
+			log.Fatal(err)
+		}
+		chsl := *chinfo
+		*chinfo = append(chsl,c)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+	rows.Close()
 }
 
 func readfullcontent(f *[]string,fp string) {
