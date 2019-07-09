@@ -13,7 +13,7 @@ filepath=/data/zip/unrarfull
 #getbookinfo获取小说名称，作者，bookid
 #getchapterinfo 获取小说章节信息，章节名称章节id....
 #getcontent 获取小说内容，并加入html标签
-mode=getconent
+mode=getbookinfo
 
 #获取书名，作者，源文件路径，创建bookid
 [getbookinfo]

@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"sync"
 )
 
 type booksinfo struct {
@@ -41,10 +42,12 @@ var bookId []int
 func GetContent(dbc *sql.DB) {
 	//并发
 	c := read_conf.Main_str.Concurrent
-	go getbookinfs(dbc, bookinfos)
+	wg := sync.WaitGroup{}
+	wg.Add(c+1)
+	go getbookinfs(dbc, bookinfos,&wg)
 
 	for i := 0; i < c; i++ {
-		go func() {
+		go func(wg *sync.WaitGroup) {
 			//获取一本书籍信息
 			b := <-bookinfos
 			//小说全部内容
@@ -57,11 +60,13 @@ func GetContent(dbc *sql.DB) {
 				//取出章节内容写入数据库
 				updatechapter(dbc, k, &fc)
 			}
-		}()
+			wg.Done()
+		}(&wg)
 	}
+	wg.Wait()
 }
 
-func getbookinfs(dbc *sql.DB, c chan booksinfo) {
+func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 	//查询总数
 	n := 0
 	sqltext := "select id from books order by id DESC limit 1;"
@@ -86,6 +91,7 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo) {
 			c <- a
 		}
 	}
+	wg.Done()
 }
 
 func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
