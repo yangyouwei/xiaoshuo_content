@@ -53,33 +53,33 @@ func init()  {
 }
 
 func (this *Mysql_conf)Mysql_fun(c *goconfig.ConfigFile,err error) {
-	this.Username, err = c.GetValue("mysql", "username")
+	this.Username, err = c.GetValue("main", "username")
 	if err != nil {
 		log.Fatalf("无法获取键值（%s）：%s", "username", err)
 		panic(err)
 	}
 
-	this.Password, err = c.GetValue("mysql", "password")
+	this.Password, err = c.GetValue("main", "password")
 	if err != nil {
 		log.Fatalf("无法获取键值（%s）：%s", "password", err)
 		panic(err)
 	}
 
-	this.Ipaddress, err = c.GetValue("mysql", "ipaddr")
+	this.Ipaddress, err = c.GetValue("main", "addr")
 	if err != nil {
-		log.Fatalf("无法获取键值（%s）：%s", "ipaddr", err)
+		log.Fatalf("无法获取键值（%s）：%s", "addr", err)
 		panic(err)
 	}
 
-	this.Port, err = c.GetValue("mysql", "prot")
+	this.Port, err = c.GetValue("main", "port")
 	if err != nil {
 		log.Fatalf("无法获取键值（%s）：%s", "prot", err)
 		panic(err)
 	}
 
-	this.DatabaseName, err = c.GetValue("mysql", "database")
+	this.DatabaseName, err = c.GetValue("main", "databasename")
 	if err != nil {
-		log.Fatalf("无法获取键值（%s）：%s", "database", err)
+		log.Fatalf("无法获取键值（%s）：%s", "databasename", err)
 		panic(err)
 	}
 }
