@@ -1,6 +1,6 @@
 [main]
 #并发
-concurrent=1
+concurrent=2
 #数据库连接
 addr=192.168.2.250
 port=3306

@@ -52,20 +52,17 @@ func GetContent(dbc *sql.DB) {
 			//获取一本书籍信息
 			b := <-bookinfos
 			//小说全部内容
-			var fc []string
-			readfullcontent(&fc,b.Sourcesfilename)
-			//var chapterInfo []chapter
+			var fc *[]string
+			fc = readfullcontent(b.Sourcesfilename)
+			var chapterInfo *[]chapter
 			//获取该本小说的全部章节信息，并更新章节start  end 行数
-			//getchapterinfo(dbc, b, &chapterInfo)
-			//fmt.Println(chapterInfo)
-			//for _, k := range chapterInfo {
-			//	//取出章节内容写入数据库
-			//	updatechapter(dbc, k, &fc)
-			//}
-			fmt.Println(b.Sourcesfilename)
-			a := len(fc)
-			fmt.Println(a)
-			fmt.Println(fc)
+			chapterInfo = getchapterinfo(dbc, b)
+			chapterInfo = dooffset(chapterInfo)
+			//fmt.Println(*chapterInfo)
+			for _, k := range *chapterInfo {
+			     //取出章节内容写入数据库
+			     updatechapter(dbc, k, fc)
+			}
 			wg.Done()
 		}(&wg)
 	}
@@ -101,9 +98,9 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
+func getchapterinfo(dbc *sql.DB, book booksinfo)  *[]chapter {
+	var chinfo []chapter
 	chaptersql := fmt.Sprintf("SELECT id,content,chapterlines FROM chapter_%v WHERE booksId=%v",book.Id%100+1,book.Id)
-	fmt.Println(chaptersql)
 	rows, err := dbc.Query(chaptersql)
 	if err != nil {
 		panic(err)
@@ -113,17 +110,31 @@ func getchapterinfo(dbc *sql.DB, book booksinfo, chinfo *[]chapter) {
 		if err := rows.Scan(&c.Id,&c.Content,&c.Chapterline); err != nil {
 			log.Fatal(err)
 		}
-		chsl := *chinfo
-		*chinfo = append(chsl,c)
-		fmt.Println(c)
+		chinfo = append(chinfo,c)
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
 	rows.Close()
+	return  &chinfo
 }
 
-func readfullcontent(f *[]string,fp string) {
+func dooffset(c *[]chapter) *[]chapter  {
+	num := len(*c)
+	a := *c
+	for n,v := range a  {
+		if n == num-1 {
+			a[n].start = v.Chapterline
+			a[n].end = 0
+			return &a
+		}
+		a[n].start = v.Chapterline
+		a[n].end = a[n+1].Chapterline - 1
+	}
+	return &a
+}
+
+func readfullcontent(fp string) *[]string {
 	fi, err := os.Open(fp)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err)
@@ -131,7 +142,7 @@ func readfullcontent(f *[]string,fp string) {
 	defer fi.Close()
 
 	br := bufio.NewReader(fi)
-	tmp  := *f
+	var tmp []string
 	for {
 		a, _, c := br.ReadLine()
 		if c == io.EOF {
@@ -141,37 +152,42 @@ func readfullcontent(f *[]string,fp string) {
 		tmp = append(tmp,string(a))
 		//fmt.Println(cap(tmp))
 	}
+	return &tmp
 }
 
 //取出章节内容合并，更新章节表的内容。
 func updatechapter(dbc *sql.DB, c chapter, fc *[]string){
 	cs := *fc
 	var a []string
-	fmt.Println(a)
 	if c.end == 0 {
 		a = cs[c.start+1:]
 	}
 	a = cs[c.start+1:c.end]
 	var content string
-	fmt.Println(a)
 	for _,v := range a {
-		content = content + v
+		content = content + v + "</br>"
 	}
 	//替换标签
 	replacecharacter(&content)
+	fmt.Println("chapter ID: ",c.Id)
+	fmt.Println(content)
+	fmt.Println("-----------------------------------------")
 	//写入数据库
 	sqlupdate(dbc,c,content)
 }
 
 func sqlupdate(dbcon *sql.DB,c chapter,content string)  {
-	contentsql := fmt.Sprintf("UPDATE books set content=? WHERE id=?")
+	contentsql := fmt.Sprintf("UPDATE ? set content=? WHERE id=?")
 	stmt, err := dbcon.Prepare(contentsql)
+	tablename := fmt.Sprintf("chapter_%v",c.BookId%100+1)
+	_, err = stmt.Exec(tablename,content,c.Id)
 	_, err = stmt.Exec(content,c.Id)
 	defer stmt.Close()
 	if err != nil {
 		fmt.Println(err)
 	}
 }
+
 
 func replacecharacter(s *string) *string {
 	//去空白字符
@@ -183,11 +199,10 @@ func replacecharacter(s *string) *string {
 		reg := regexp.MustCompile(`^(\b+)(.+)`)
 		result := reg.FindAllStringSubmatch(*s,-1)
 		*s = result[0][1]
+		return s
 	}
 	//替换换行符
-	reg := regexp.MustCompile("<br /></br>")
-	result := reg.ReplaceAllString(*s,"\n")
-
-	*s = result
+	//reg := regexp.MustCompile("<br /></br>")
+	//result := reg.ReplaceAllString(*s,"\n")
 	return s
 }
