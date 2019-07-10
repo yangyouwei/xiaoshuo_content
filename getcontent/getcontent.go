@@ -149,6 +149,13 @@ func readfullcontent(fp string) *[]string {
 		if c == io.EOF {
 			break
 		}
+		isok , err := regexp.Match(`^(\s*)$`,[]byte(string(a)))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if isok {
+			continue
+		}
 		//fmt.Println(string(a))
 		tmp = append(tmp,string(a))
 		//fmt.Println(cap(tmp))
@@ -197,18 +204,15 @@ func sqlupdate(dbcon *sql.DB,c chapter,content string)  {
 
 func replacecharacter(s *string) *string {
 	//去空白字符
-	isok , err := regexp.Match("\b",[]byte(*s))
+	isok , err := regexp.Match(`^(\s+)(.+)$`,[]byte(*s))
 	if err != nil {
 		fmt.Println(err)
 	}
+	fmt.Println(isok)
 	if isok {
-		reg := regexp.MustCompile(`^(\b+)(.+)`)
+		reg := regexp.MustCompile(`^(\s+)(.+$)`)
 		result := reg.FindAllStringSubmatch(*s,-1)
-		*s = result[0][1]
-		return s
+		fmt.Println(result[0][2])
 	}
-	//替换换行符
-	//reg := regexp.MustCompile("<br /></br>")
-	//result := reg.ReplaceAllString(*s,"\n")
 	return s
 }
