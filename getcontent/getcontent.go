@@ -176,7 +176,7 @@ func updatechapter(dbc *sql.DB, c chapter, fc *[]string){
 	
 	var content string
 	for _,v := range a {
-		content = content + v +"</br>"
+		content = content + v +"</br></br>"
 	}
 	//替换标签
 	//fmt.Printf("chapterID: %v  start: %v end:  %v \n",c.Id,c.start,c.end)
