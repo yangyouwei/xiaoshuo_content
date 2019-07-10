@@ -49,19 +49,20 @@ func GetContent(dbc *sql.DB) {
 
 	for i := 0; i < c; i++ {
 		go func(wg *sync.WaitGroup) {
-			//获取一本书籍信息
-			b := <-bookinfos
-			//小说全部内容
-			var fc *[]string
-			fc = readfullcontent(b.Sourcesfilename)
-			var chapterInfo *[]chapter
-			//获取该本小说的全部章节信息，并更新章节start  end 行数
-			chapterInfo = getchapterinfo(dbc, b)
-			chapterInfo = dooffset(chapterInfo)
-			//fmt.Println(*chapterInfo)
-			for _, k := range *chapterInfo {
-			     //取出章节内容写入数据库
-			     updatechapter(dbc, k, fc)
+			for {
+				//获取一本书籍信息
+				b := <-bookinfos
+				//小说全部内容
+				var fc *[]string
+				fc = readfullcontent(b.Sourcesfilename)
+				var chapterInfo *[]chapter
+				//获取该本小说的全部章节信息，并更新章节start  end 行数
+				chapterInfo = getchapterinfo(dbc, b)
+				chapterInfo = dooffset(chapterInfo)
+				for _, k := range *chapterInfo {
+					//取出章节内容写入数据库
+					updatechapter(dbc, k, fc)
+				}
 			}
 			wg.Done()
 		}(&wg)
@@ -100,14 +101,14 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 
 func getchapterinfo(dbc *sql.DB, book booksinfo)  *[]chapter {
 	var chinfo []chapter
-	chaptersql := fmt.Sprintf("SELECT id,content,chapterlines FROM chapter_%v WHERE booksId=%v",book.Id%100+1,book.Id)
+	chaptersql := fmt.Sprintf("SELECT id,booksId,content,chapterlines FROM chapter_%v WHERE booksId=%v",book.Id%100+1,book.Id)
 	rows, err := dbc.Query(chaptersql)
 	if err != nil {
 		panic(err)
 	}
 	c := chapter{}
 	for  rows.Next()  {
-		if err := rows.Scan(&c.Id,&c.Content,&c.Chapterline); err != nil {
+		if err := rows.Scan(&c.Id,&c.BookId,&c.Content,&c.Chapterline); err != nil {
 			log.Fatal(err)
 		}
 		chinfo = append(chinfo,c)
@@ -122,8 +123,8 @@ func getchapterinfo(dbc *sql.DB, book booksinfo)  *[]chapter {
 func dooffset(c *[]chapter) *[]chapter  {
 	num := len(*c)
 	a := *c
-	for n,v := range a  {
-		if n == num-1 {
+	for n,v := range *c  {
+		if n == num - 1 {
 			a[n].start = v.Chapterline
 			a[n].end = 0
 			return &a
@@ -157,34 +158,39 @@ func readfullcontent(fp string) *[]string {
 
 //取出章节内容合并，更新章节表的内容。
 func updatechapter(dbc *sql.DB, c chapter, fc *[]string){
+	fmt.Println(c)
 	cs := *fc
 	var a []string
 	if c.end == 0 {
-		a = cs[c.start+1:]
+		a = cs[c.start:]
+	}else {
+		a = cs[c.start:c.end]
 	}
-	a = cs[c.start+1:c.end]
+	
 	var content string
 	for _,v := range a {
-		content = content + v + "</br>"
+		content = content + v +"</br>"
 	}
 	//替换标签
+	//fmt.Printf("chapterID: %v  start: %v end:  %v \n",c.Id,c.start,c.end)
 	replacecharacter(&content)
-	fmt.Println("chapter ID: ",c.Id)
-	fmt.Println(content)
-	fmt.Println("-----------------------------------------")
+	//fmt.Println(content)
+
 	//写入数据库
+	//fmt.Println(c.BookId)
 	sqlupdate(dbc,c,content)
 }
 
 func sqlupdate(dbcon *sql.DB,c chapter,content string)  {
-	contentsql := fmt.Sprintf("UPDATE ? set content=? WHERE id=?")
+	contentsql := fmt.Sprintf("UPDATE chapter_%v SET content=? WHERE id=?",c.BookId%100+1)
 	stmt, err := dbcon.Prepare(contentsql)
-	tablename := fmt.Sprintf("chapter_%v",c.BookId%100+1)
-	_, err = stmt.Exec(tablename,content,c.Id)
+	if err != nil {
+		log.Println(err)
+	}
 	_, err = stmt.Exec(content,c.Id)
 	defer stmt.Close()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 }
 

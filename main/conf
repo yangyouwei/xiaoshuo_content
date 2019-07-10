@@ -1,6 +1,6 @@
 [main]
 #并发
-concurrent=2
+concurrent=5
 #数据库连接
 addr=192.168.2.250
 port=3306
@@ -14,6 +14,7 @@ filepath=/data/zip/unrarfull
 #getchapterinfo 获取小说章节信息，章节名称章节id....
 #getcontent 获取小说内容，并加入html标签
 mode=getcontent
+#mode=getchapterinfo
 
 #获取书名，作者，源文件路径，创建bookid
 [getbookinfo]
