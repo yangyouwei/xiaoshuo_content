@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/yangyouwei/xiaoshuo_content/read_conf"
 	"io"
+	"strings"
 	"log"
 	"os"
 	"regexp"
@@ -50,8 +51,11 @@ func GetContent(dbc *sql.DB) {
 	for i := 0; i < c; i++ {
 		go func(wg *sync.WaitGroup) {
 			for {
+				b, isclose := <-bookinfos //判断chan是否关闭，关闭了就退出循环不在取文件名结束程序
+				if !isclose {                     //判断通道是否关闭，关闭则退出循环
+					return
+				}
 				//获取一本书籍信息
-				b := <-bookinfos
 				//小说全部内容
 				var fc *[]string
 				fc = readfullcontent(b.Sourcesfilename)
@@ -96,6 +100,7 @@ func getbookinfs(dbc *sql.DB, c chan booksinfo,wg *sync.WaitGroup) {
 			c <- a
 		}
 	}
+	close(c)
 	wg.Done()
 }
 
@@ -149,13 +154,6 @@ func readfullcontent(fp string) *[]string {
 		if c == io.EOF {
 			break
 		}
-		isok , err := regexp.Match(`^(\s*)$`,[]byte(string(a)))
-		if err != nil {
-			fmt.Println(err)
-		}
-		if isok {
-			continue
-		}
 		//fmt.Println(string(a))
 		tmp = append(tmp,string(a))
 		//fmt.Println(cap(tmp))
@@ -174,8 +172,34 @@ func updatechapter(dbc *sql.DB, c chapter, fc *[]string){
 		a = cs[c.start:c.end]
 	}
 	
-	var content string
+	var content string = "&nbsp&nbsp&nbsp&nbsp"
 	for _,v := range a {
+		if len(v) == 0 {
+			continue
+		}
+
+		isok , err := regexp.Match(`^(\s+)$`,[]byte(v))
+		if err != nil {
+			fmt.Println(err)
+		}
+		if isok {
+			continue
+		}
+
+		isok1 := strings.HasPrefix(v,"更多精彩，更多好书，尽在新奇书网—http://www.xqishu.com")
+		if isok1 {
+			isok , err := regexp.Match(`^(.*)(更多精彩，更多好书，尽在新奇书网—http://www.xqishu.com)$`,[]byte(v))
+			if err != nil {
+				fmt.Println(err)
+			}
+			if isok {
+				continue
+			}
+			reg := regexp.MustCompile(`^(.*)(更多精彩，更多好书，尽在新奇书网—http://www.xqishu.com)(.+$)`)
+			result := reg.FindAllStringSubmatch(v,-1)
+			v = result[0][3]
+		}
+
 		content = content + v +"</br></br>"
 	}
 	//替换标签
@@ -203,16 +227,15 @@ func sqlupdate(dbcon *sql.DB,c chapter,content string)  {
 
 
 func replacecharacter(s *string) *string {
-	//去空白字符
-	isok , err := regexp.Match(`^(\s+)(.+)$`,[]byte(*s))
+	//去行首空白字符
+	isok , err := regexp.Match(`^(.+)(\s+)(.+)$`,[]byte(*s))
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(isok)
 	if isok {
-		reg := regexp.MustCompile(`^(\s+)(.+$)`)
+		reg := regexp.MustCompile(`^(.+)(\s+)(.+$)`)
 		result := reg.FindAllStringSubmatch(*s,-1)
-		fmt.Println(result[0][2])
+		*s = result[0][1]+result[0][3]
 	}
 	return s
 }
